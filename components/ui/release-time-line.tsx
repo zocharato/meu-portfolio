@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowUpRight, Package, Calendar, Sparkles, Zap } from 'lucide-react';
+import { ArrowUpRight, Calendar, Sparkles, Zap } from 'lucide-react';
 
 export type TimeLine_01Entry = {
   icon: React.ComponentType<{ className?: string }>;
@@ -50,7 +50,7 @@ export const defaultEntries: TimeLine_01Entry[] = [
     ],
     image: '/trabalho.png',
   },
-   {
+  {
     icon: Zap,
     title: 'Faculdade',
     subtitle: 'Engenharia de Software',
@@ -63,24 +63,9 @@ export const defaultEntries: TimeLine_01Entry[] = [
     ],
     image: '/logo.png',
   },
-  {
-    icon: Package,
-    title: 'Futuro',
-    subtitle: 'Objetivos',
-    description:
-      'Quanto ao meu futuro, sinto que há um caminho enorme pela frente e estou me dedicando ao máximo aos estudos para conquistar uma grande oportunidade. Meus olhos brilham tanto pela Tecnologia quanto pelo Mercado Financeiro, e sei que em um ambiente de trabalho poderei acelerar meu aprendizado. Além disso, conquistar minha independência financeira me permitirá investir no meu inglês, algo que é prioridade absoluta para o meu crescimento.',
-    items: [
-      'Investimento no Inglês',
-      'Evolução Profissional',
-      'Networking',
-    ],
-    image: '/futuro.png',
-  },
 ];
 
 export default function TimeLine_01({
-  title = 'Minha trajetória',
-  description = 'Uma linha do tempo com os momentos que marcaram minha caminhada até aqui.',
   entries = defaultEntries,
 }: TimeLine_01Props) {
   const [activeIndex, setActiveIndex] = useState(0);
@@ -93,17 +78,16 @@ export default function TimeLine_01({
   useEffect(() => {
     if (!sentinelRefs.current.length) return;
 
-    let frame = 0;
+    let ticking = false;
 
-    const updateActiveByProximity = () => {
-      frame = requestAnimationFrame(updateActiveByProximity);
-
+    const updateActive = () => {
       const centerY = window.innerHeight / 3;
       let bestIndex = 0;
       let bestDist = Infinity;
 
       sentinelRefs.current.forEach((node, i) => {
         if (!node) return;
+
         const rect = node.getBoundingClientRect();
         const mid = rect.top + rect.height / 2;
         const dist = Math.abs(mid - centerY);
@@ -115,31 +99,42 @@ export default function TimeLine_01({
       });
 
       setActiveIndex((prev) => (prev !== bestIndex ? bestIndex : prev));
+      ticking = false;
     };
 
-    frame = requestAnimationFrame(updateActiveByProximity);
+    const handleScroll = () => {
+      if (!ticking) {
+        requestAnimationFrame(updateActive);
+        ticking = true;
+      }
+    };
 
-    return () => cancelAnimationFrame(frame);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    updateActive();
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
   }, []);
 
   return (
-    <section className="py-16 md:py-24">
+    <section className="py-8 md:py-12">
       <div className="mx-auto max-w-5xl">
-        <div className="mx-auto max-w-4xl space-y-16 md:space-y-24">
+        <div className="mx-auto max-w-4xl space-y-14 md:space-y-20">
           {entries.map((entry, index) => {
             const isActive = index === activeIndex;
 
             return (
               <div
                 key={index}
-                className="relative flex flex-col gap-4 md:flex-row md:gap-16"
+                className="relative flex flex-col gap-4 md:flex-row md:gap-14"
                 aria-current={isActive ? 'true' : 'false'}
               >
                 <div className="top-8 flex h-min w-full shrink-0 items-center gap-4 md:sticky md:w-64">
                   <div className="flex items-center gap-3">
                     <div
-                      className={`rounded-lg p-2 ${
-                        isActive ? 'bg-white text-black' : 'bg-zinc-800 text-zinc-400'
+                      className={`rounded-lg p-2 transition-all ${
+                        isActive ? 'bg-white text-black' : 'bg-zinc-800/80 text-zinc-400'
                       }`}
                     >
                       <entry.icon className="h-4 w-4" />
@@ -162,16 +157,12 @@ export default function TimeLine_01({
                   className="absolute -top-24 left-0 h-12 w-12 opacity-0"
                 />
 
-                <article
-                  className={`flex w-full flex-col rounded-2xl border p-3 transition-all duration-300 ${
-                    isActive ? 'border-zinc-700 bg-zinc-950 shadow-lg' : 'border-zinc-800 bg-zinc-950/80'
-                  }`}
-                >
+                <article className="flex w-full flex-col p-0 transition-all duration-300">
                   {entry.image && (
                     <img
                       src={entry.image}
                       alt={entry.title}
-                      className="mb-4 h-72 w-full rounded-lg object-cover"
+                      className="mb-4 h-72 w-full rounded-2xl object-cover"
                       loading="lazy"
                     />
                   )}
@@ -204,7 +195,7 @@ export default function TimeLine_01({
                       <div className="overflow-hidden">
                         <div className="space-y-4 pt-2">
                           {entry.items && entry.items.length > 0 && (
-                            <div className="rounded-lg border border-zinc-800 bg-black/40 p-4">
+                            <div className="rounded-xl border border-white/8 bg-black/20 p-4">
                               <ul className="space-y-2">
                                 {entry.items.map((item, itemIndex) => (
                                   <li

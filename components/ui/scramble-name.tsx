@@ -13,16 +13,20 @@ class TextScramble {
     char?: string;
   }>;
   frame: number;
-  frameRequest: number;
+  frameRequest: number | null;
   resolve: (() => void) | null;
+  lastFrameTime: number;
+  isRunning: boolean;
 
   constructor(el: HTMLElement) {
     this.el = el;
-    this.chars = '!<>-_\\/[]{}—=+*^?#0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    this.chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     this.queue = [];
     this.frame = 0;
-    this.frameRequest = 0;
+    this.frameRequest = null;
     this.resolve = null;
+    this.lastFrameTime = 0;
+    this.isRunning = false;
     this.update = this.update.bind(this);
   }
 
@@ -39,20 +43,39 @@ class TextScramble {
     for (let i = 0; i < length; i++) {
       const from = oldText[i] || '';
       const to = newText[i] || '';
-      const start = Math.floor(Math.random() * 60);
-      const end = start + Math.floor(Math.random() * 60) + 30;
+      const start = Math.floor(Math.random() * 14);
+      const end = start + Math.floor(Math.random() * 10) + 6;
 
       this.queue.push({ from, to, start, end });
     }
 
-    cancelAnimationFrame(this.frameRequest);
+    if (this.frameRequest !== null) {
+      cancelAnimationFrame(this.frameRequest);
+    }
+
     this.frame = 0;
-    this.update();
+    this.lastFrameTime = 0;
+    this.isRunning = true;
+    this.frameRequest = requestAnimationFrame(this.update);
 
     return promise;
   }
 
-  update() {
+  update(time = 0) {
+    if (!this.isRunning) return;
+
+    if (document.hidden) {
+      this.frameRequest = requestAnimationFrame(this.update);
+      return;
+    }
+
+    if (time - this.lastFrameTime < 50) {
+      this.frameRequest = requestAnimationFrame(this.update);
+      return;
+    }
+
+    this.lastFrameTime = time;
+
     let output = '';
     let complete = 0;
 
@@ -63,7 +86,7 @@ class TextScramble {
         complete++;
         output += to;
       } else if (this.frame >= start) {
-        if (!char || Math.random() < 0.28) {
+        if (!char || Math.random() < 0.1) {
           char = this.chars[Math.floor(Math.random() * this.chars.length)];
           this.queue[i].char = char;
         }
@@ -77,15 +100,23 @@ class TextScramble {
     this.el.innerHTML = output;
 
     if (complete === this.queue.length) {
+      this.isRunning = false;
+      this.el.textContent = this.queue.map((item) => item.to).join('');
       if (this.resolve) this.resolve();
-    } else {
-      this.frameRequest = requestAnimationFrame(this.update);
-      this.frame++;
+      this.frameRequest = null;
+      return;
     }
+
+    this.frame++;
+    this.frameRequest = requestAnimationFrame(this.update);
   }
 
   destroy() {
-    cancelAnimationFrame(this.frameRequest);
+    this.isRunning = false;
+    if (this.frameRequest !== null) {
+      cancelAnimationFrame(this.frameRequest);
+      this.frameRequest = null;
+    }
   }
 }
 
@@ -96,6 +127,7 @@ type ScrambleNameProps = {
 export default function ScrambleName({ text }: ScrambleNameProps) {
   const ref = useRef<HTMLHeadingElement>(null);
   const scrambleRef = useRef<TextScramble | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!ref.current) return;
@@ -103,12 +135,18 @@ export default function ScrambleName({ text }: ScrambleNameProps) {
     scrambleRef.current = new TextScramble(ref.current);
     scrambleRef.current.setText(text);
 
-    const interval = setInterval(() => {
-      scrambleRef.current?.setText(text);
-    }, 20000);
+    const scheduleNext = () => {
+      timeoutRef.current = setTimeout(() => {
+        scrambleRef.current?.setText(text).then(() => {
+          scheduleNext();
+        });
+      }, 25000);
+    };
+
+    scheduleNext();
 
     return () => {
-      clearInterval(interval);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
       scrambleRef.current?.destroy();
     };
   }, [text]);
@@ -118,11 +156,15 @@ export default function ScrambleName({ text }: ScrambleNameProps) {
       <h1
         ref={ref}
         style={{
-          fontSize: '56px',
-          lineHeight: 1.02,
+          fontSize: 'clamp(2.4rem, 7vw, 56px)',
+          lineHeight: 1.04,
           fontWeight: 600,
           margin: 0,
           color: 'white',
+          maxWidth: '100%',
+          letterSpacing: '-0.03em',
+          display: 'inline-block',
+          minHeight: '2.2em',
         }}
       >
         {text}
@@ -130,11 +172,14 @@ export default function ScrambleName({ text }: ScrambleNameProps) {
 
       <style>{`
         .scramble-char {
-          color: #cbd5ff;
-          opacity: 0.85;
+          display: inline-block;
+          width: 0.62em;
+          text-align: center;
+          color: #ffffff;
+          opacity: 0.9;
           text-shadow:
-            0 0 8px rgba(255, 255, 255, 0.15),
-            0 0 18px rgba(147, 197, 253, 0.18);
+            0 0 6px rgba(255, 255, 255, 0.22),
+            0 0 12px rgba(255, 255, 255, 0.12);
         }
       `}</style>
     </>

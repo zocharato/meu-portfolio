@@ -120,7 +120,7 @@ export default function SkillsOrbit() {
   const [activeSkill, setActiveSkill] = useState<Skill | null>(null);
   const [rotation, setRotation] = useState(0);
   const [isRotating, setIsRotating] = useState(true);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const radius = 280;
 
@@ -132,8 +132,8 @@ export default function SkillsOrbit() {
 
     if (isRotating) {
       intervalRef.current = setInterval(() => {
-        setRotation((prev) => prev + 0.2);
-      }, 20);
+        setRotation((prev) => prev + 0.18);
+      }, 50);
     }
 
     return () => {
@@ -186,7 +186,7 @@ export default function SkillsOrbit() {
             height: '620px',
             borderRadius: '999px',
             border: '1px solid rgba(255,255,255,0.08)',
-            boxShadow: '0 0 120px rgba(124, 58, 237, 0.08)',
+            boxShadow: '0 0 90px rgba(124, 58, 237, 0.06)',
           }}
         />
 
@@ -198,7 +198,7 @@ export default function SkillsOrbit() {
             letterSpacing: '0.22em',
             textTransform: 'uppercase',
             color: '#c4b5fd',
-            textShadow: '0 0 24px rgba(168,85,247,0.28)',
+            textShadow: '0 0 18px rgba(168,85,247,0.22)',
             userSelect: 'none',
             pointerEvents: 'none',
           }}
@@ -226,7 +226,7 @@ export default function SkillsOrbit() {
               }}
               style={{
                 position: 'absolute',
-                transform: `translate(${orbitX}px, ${orbitY}px)`,
+                transform: `translate3d(${orbitX}px, ${orbitY}px, 0)`,
                 width: isActive ? '90px' : '74px',
                 height: isActive ? '90px' : '74px',
                 borderRadius: '999px',
@@ -235,20 +235,20 @@ export default function SkillsOrbit() {
                   : '1px solid rgba(255,255,255,0.12)',
                 background: isActive
                   ? 'rgba(255,255,255,0.16)'
-                  : 'rgba(20,20,24,0.82)',
-                backdropFilter: 'blur(12px)',
+                  : 'rgba(20,20,24,0.88)',
                 color: '#fff',
                 cursor: 'pointer',
-                transition: '0.25s ease',
+                transition: 'transform 0.2s ease, width 0.25s ease, height 0.25s ease, border 0.25s ease, background 0.25s ease, box-shadow 0.25s ease',
                 boxShadow: isActive
-                  ? `0 0 30px ${skill.color}55`
-                  : '0 10px 30px rgba(0,0,0,0.28)',
+                  ? `0 0 24px ${skill.color}55`
+                  : '0 10px 24px rgba(0,0,0,0.24)',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '6px',
                 padding: '8px',
+                willChange: 'transform',
               }}
             >
               <Icon size={18} />
@@ -272,7 +272,6 @@ export default function SkillsOrbit() {
           background: 'rgba(18,18,24,0.72)',
           border: '1px solid rgba(255,255,255,0.08)',
           borderRadius: '28px',
-          backdropFilter: 'blur(14px)',
           padding: '28px',
           boxShadow: '0 20px 60px rgba(0,0,0,0.35)',
         }}
@@ -341,7 +340,7 @@ export default function SkillsOrbit() {
                   ? `linear-gradient(90deg, ${activeSkill.color}, #ffffff)`
                   : 'transparent',
                 boxShadow: activeSkill
-                  ? `0 0 18px ${activeSkill.color}66`
+                  ? `0 0 12px ${activeSkill.color}55`
                   : 'none',
                 transition: '0.35s ease',
               }}

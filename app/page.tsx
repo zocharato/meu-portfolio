@@ -4,7 +4,10 @@ import { useEffect, useRef } from 'react';
 import type { CSSProperties } from 'react';
 import ScrambleName from '@/components/ui/scramble-name';
 import SkillsOrbit from '@/components/ui/skills-orbit';
-import TimeLine_01 from '@/components/ui/release-time-line';
+import HobbiesWheel from '@/components/ui/hobbies-wheel';
+import GetInTouch from '@/components/ui/get-in-touch';
+import AboutTabs from '@/components/ui/about-tabs';
+import { PillBase } from '@/components/ui/3d-adaptive-navigation-bar';
 
 export default function Home() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -16,16 +19,120 @@ export default function Home() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    const FPS = 30;
+    const FRAME_DURATION = 1000 / FPS;
+
     let animationFrameId = 0;
     let time = 0;
+    let lastFrameTime = 0;
+    let resizeRaf = 0;
+
+    let viewportWidth = window.innerWidth;
+    let viewportHeight = window.innerHeight;
+
+    let noiseCanvas: HTMLCanvasElement | null = null;
+    let gridCanvas: HTMLCanvasElement | null = null;
+    let scanlineCanvas: HTMLCanvasElement | null = null;
+    let tubeCanvas: HTMLCanvasElement | null = null;
+
+    const createOffscreenCanvas = (width: number, height: number) => {
+      const off = document.createElement('canvas');
+      off.width = width;
+      off.height = height;
+      return off;
+    };
+
+    const buildStaticTextures = () => {
+      const w = viewportWidth;
+      const h = viewportHeight;
+
+      noiseCanvas = createOffscreenCanvas(w, h);
+      gridCanvas = createOffscreenCanvas(w, h);
+      scanlineCanvas = createOffscreenCanvas(w, h);
+      tubeCanvas = createOffscreenCanvas(w, h);
+
+      const noiseCtx = noiseCanvas.getContext('2d');
+      const gridCtx = gridCanvas.getContext('2d');
+      const scanCtx = scanlineCanvas.getContext('2d');
+      const tubeCtx = tubeCanvas.getContext('2d');
+
+      if (!noiseCtx || !gridCtx || !scanCtx || !tubeCtx) return;
+
+      for (let i = 0; i < 2600; i++) {
+        const x = Math.random() * w;
+        const y = Math.random() * h;
+        const alpha = Math.random() * 0.05;
+        const size = Math.random() > 0.94 ? 1.5 : 1;
+        noiseCtx.fillStyle = `rgba(255,255,255,${alpha})`;
+        noiseCtx.fillRect(x, y, size, size);
+      }
+
+      gridCtx.save();
+      gridCtx.strokeStyle = 'rgba(255,255,255,0.018)';
+      gridCtx.lineWidth = 1;
+
+      for (let x = 0; x < w; x += 6) {
+        gridCtx.beginPath();
+        gridCtx.moveTo(x, 0);
+        gridCtx.lineTo(x, h);
+        gridCtx.stroke();
+      }
+
+      for (let y = 0; y < h; y += 6) {
+        gridCtx.beginPath();
+        gridCtx.moveTo(0, y);
+        gridCtx.lineTo(w, y);
+        gridCtx.stroke();
+      }
+
+      gridCtx.restore();
+
+      scanCtx.save();
+      scanCtx.strokeStyle = 'rgba(255,255,255,0.02)';
+      scanCtx.lineWidth = 1;
+
+      for (let y = 0; y < h; y += 4) {
+        scanCtx.beginPath();
+        scanCtx.moveTo(0, y);
+        scanCtx.lineTo(w, y);
+        scanCtx.stroke();
+      }
+
+      scanCtx.restore();
+
+      tubeCtx.save();
+      tubeCtx.globalCompositeOperation = 'overlay';
+
+      for (let i = 0; i < 120; i++) {
+        const y = h * 0.42 + Math.random() * h * 0.22;
+        const alpha = Math.random() * 0.025;
+        tubeCtx.fillStyle = `rgba(255,255,255,${alpha})`;
+        tubeCtx.fillRect(0, y, w, 1);
+      }
+
+      tubeCtx.restore();
+    };
 
     const resizeCanvas = () => {
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = Math.floor(window.innerWidth * dpr);
-      canvas.height = Math.floor(window.innerHeight * dpr);
+      viewportWidth = window.innerWidth;
+      viewportHeight = window.innerHeight;
+
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.1);
+
+      canvas.width = Math.floor(viewportWidth * dpr);
+      canvas.height = Math.floor(viewportHeight * dpr);
       canvas.style.width = '100vw';
       canvas.style.height = '100vh';
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.scale(dpr, dpr);
+
+      buildStaticTextures();
+    };
+
+    const handleResize = () => {
+      cancelAnimationFrame(resizeRaf);
+      resizeRaf = requestAnimationFrame(resizeCanvas);
     };
 
     resizeCanvas();
@@ -49,15 +156,20 @@ export default function Home() {
       blur: number;
       yOffset: number;
     }) => {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
+      const w = viewportWidth;
+      const h = viewportHeight;
       const centerY = h * yOffset;
       const phase = time * speed + offset;
 
       ctx.save();
       ctx.filter = `blur(${blur}px)`;
 
-      const gradient = ctx.createLinearGradient(0, centerY - amplitude * 3, 0, centerY + amplitude * 3);
+      const gradient = ctx.createLinearGradient(
+        0,
+        centerY - amplitude * 3,
+        0,
+        centerY + amplitude * 3
+      );
       gradient.addColorStop(0, `hsla(${hue}, 100%, 55%, 0)`);
       gradient.addColorStop(0.2, `hsla(${hue}, 100%, 58%, ${opacity * 0.35})`);
       gradient.addColorStop(0.5, `hsla(${hue}, 100%, 62%, ${opacity})`);
@@ -66,7 +178,7 @@ export default function Home() {
 
       ctx.beginPath();
 
-      for (let x = -80; x <= w + 80; x += 2) {
+      for (let x = -80; x <= w + 80; x += 4) {
         const y1 = Math.sin(x * frequency + phase) * amplitude;
         const y2 = Math.sin(x * frequency * 1.7 + phase * 1.2) * amplitude * 0.4;
         const y3 = Math.sin(x * frequency * 0.58 + phase * 0.75) * amplitude * 0.33;
@@ -85,67 +197,9 @@ export default function Home() {
       ctx.restore();
     };
 
-    const drawNoiseTexture = () => {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-
-      for (let i = 0; i < 5200; i++) {
-        const x = Math.random() * w;
-        const y = Math.random() * h;
-        const alpha = Math.random() * 0.05;
-        const size = Math.random() > 0.94 ? 1.5 : 1;
-
-        ctx.fillStyle = `rgba(255,255,255,${alpha})`;
-        ctx.fillRect(x, y, size, size);
-      }
-    };
-
-    const drawPixelGrid = () => {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-
-      ctx.save();
-      ctx.strokeStyle = 'rgba(255,255,255,0.018)';
-      ctx.lineWidth = 1;
-
-      for (let x = 0; x < w; x += 3) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, h);
-        ctx.stroke();
-      }
-
-      for (let y = 0; y < h; y += 3) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(w, y);
-        ctx.stroke();
-      }
-
-      ctx.restore();
-    };
-
-    const drawScanlines = () => {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-
-      ctx.save();
-      ctx.strokeStyle = 'rgba(255,255,255,0.02)';
-      ctx.lineWidth = 1;
-
-      for (let y = 0; y < h; y += 3) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(w, y);
-        ctx.stroke();
-      }
-
-      ctx.restore();
-    };
-
     const drawChromaticBands = () => {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
+      const w = viewportWidth;
+      const h = viewportHeight;
 
       const hueA = (time * 0.6) % 360;
       const hueB = (hueA + 110) % 360;
@@ -204,10 +258,17 @@ export default function Home() {
     };
 
     const drawWarmTopGlow = () => {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
+      const w = viewportWidth;
+      const h = viewportHeight;
 
-      const topGlow = ctx.createRadialGradient(w / 2, h * 0.12, 0, w / 2, h * 0.12, w * 0.45);
+      const topGlow = ctx.createRadialGradient(
+        w / 2,
+        h * 0.12,
+        0,
+        w / 2,
+        h * 0.12,
+        w * 0.45
+      );
       topGlow.addColorStop(0, 'rgba(255,170,60,0.14)');
       topGlow.addColorStop(0.18, 'rgba(255,150,35,0.07)');
       topGlow.addColorStop(0.38, 'rgba(120,60,0,0.03)');
@@ -217,30 +278,12 @@ export default function Home() {
       ctx.fillRect(0, 0, w, h);
     };
 
-    const drawTubeTexture = () => {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-
-      ctx.save();
-      ctx.globalCompositeOperation = 'overlay';
-
-      for (let i = 0; i < 180; i++) {
-        const y = h * 0.42 + Math.random() * h * 0.22;
-        const alpha = Math.random() * 0.025;
-
-        ctx.fillStyle = `rgba(255,255,255,${alpha})`;
-        ctx.fillRect(0, y, w, 1);
-      }
-
-      ctx.restore();
-    };
-
     const drawDustAndBurn = () => {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
+      const w = viewportWidth;
+      const h = viewportHeight;
 
-      if (Math.random() < 0.08) {
-        for (let i = 0; i < 8; i++) {
+      if (Math.random() < 0.05) {
+        for (let i = 0; i < 4; i++) {
           const x = Math.random() * w;
           const y = Math.random() * h;
           const size = Math.random() * 2 + 0.5;
@@ -252,7 +295,7 @@ export default function Home() {
         }
       }
 
-      if (Math.random() < 0.02) {
+      if (Math.random() < 0.01) {
         const x = Math.random() * w;
         ctx.strokeStyle = `rgba(255,255,255,${Math.random() * 0.14 + 0.05})`;
         ctx.lineWidth = Math.random() * 1.5 + 0.4;
@@ -263,19 +306,35 @@ export default function Home() {
       }
     };
 
-    const animate = () => {
+    const animate = (now = 0) => {
       animationFrameId = requestAnimationFrame(animate);
+
+      if (document.hidden) {
+        lastFrameTime = now;
+        return;
+      }
+
+      if (now - lastFrameTime < FRAME_DURATION) return;
+      lastFrameTime = now;
+
       time += 1;
 
-      const w = window.innerWidth;
-      const h = window.innerHeight;
+      const w = viewportWidth;
+      const h = viewportHeight;
 
       ctx.clearRect(0, 0, w, h);
 
       ctx.fillStyle = 'rgba(1, 2, 8, 0.985)';
       ctx.fillRect(0, 0, w, h);
 
-      const ambient = ctx.createRadialGradient(w / 2, h * 0.55, 0, w / 2, h * 0.55, w * 0.58);
+      const ambient = ctx.createRadialGradient(
+        w / 2,
+        h * 0.55,
+        0,
+        w / 2,
+        h * 0.55,
+        w * 0.58
+      );
       ambient.addColorStop(0, 'rgba(50, 70, 180, 0.05)');
       ambient.addColorStop(0.35, 'rgba(95, 40, 170, 0.04)');
       ambient.addColorStop(0.7, 'rgba(12, 15, 35, 0.02)');
@@ -285,7 +344,8 @@ export default function Home() {
 
       drawWarmTopGlow();
       drawChromaticBands();
-      drawTubeTexture();
+
+      if (tubeCanvas) ctx.drawImage(tubeCanvas, 0, 0);
 
       ctx.save();
       ctx.globalCompositeOperation = 'screen';
@@ -319,16 +379,24 @@ export default function Home() {
       });
       ctx.restore();
 
-      drawScanlines();
-      drawPixelGrid();
-      drawNoiseTexture();
+      if (scanlineCanvas) ctx.drawImage(scanlineCanvas, 0, 0);
+      if (gridCanvas) ctx.drawImage(gridCanvas, 0, 0);
+      if (noiseCanvas) ctx.drawImage(noiseCanvas, 0, 0);
+
       drawDustAndBurn();
 
       const flicker = Math.sin(time * 0.22) * 0.006 + Math.random() * 0.004;
       ctx.fillStyle = `rgba(255,255,255,${flicker})`;
       ctx.fillRect(0, 0, w, h);
 
-      const vignette = ctx.createRadialGradient(w / 2, h / 2, w * 0.12, w / 2, h / 2, w * 0.74);
+      const vignette = ctx.createRadialGradient(
+        w / 2,
+        h / 2,
+        w * 0.12,
+        w / 2,
+        h / 2,
+        w * 0.74
+      );
       vignette.addColorStop(0, 'rgba(0,0,0,0)');
       vignette.addColorStop(0.55, 'rgba(0,0,0,0.24)');
       vignette.addColorStop(0.82, 'rgba(0,0,0,0.52)');
@@ -338,11 +406,12 @@ export default function Home() {
     };
 
     animate();
-    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('resize', handleResize);
 
     return () => {
       cancelAnimationFrame(animationFrameId);
-      window.removeEventListener('resize', resizeCanvas);
+      cancelAnimationFrame(resizeRaf);
+      window.removeEventListener('resize', handleResize);
     };
   }, []);
 
@@ -390,74 +459,7 @@ export default function Home() {
           zIndex: 1,
         }}
       >
-        <nav
-          style={{
-            position: 'fixed',
-            top: '22px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            minHeight: '52px',
-            padding: '0 18px',
-            display: 'flex',
-            alignItems: 'center',
-            borderRadius: '999px',
-            background: 'rgba(15, 15, 18, 0.6)',
-            backdropFilter: 'blur(14px)',
-            border: '1px solid rgba(255,255,255,0.06)',
-            boxShadow: '0 8px 30px rgba(0,0,0,0.45)',
-            zIndex: 100,
-            gap: '22px',
-            flexWrap: 'wrap',
-            maxWidth: 'calc(100vw - 32px)',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '22px',
-              fontSize: '14px',
-              fontWeight: 500,
-              color: '#d4d4d8',
-              flexWrap: 'wrap',
-              padding: '10px 0',
-            }}
-          >
-            <a href="#home" style={{ textDecoration: 'none', color: '#ffffff' }}>Início</a>
-            <a href="#sobre" style={{ textDecoration: 'none', color: '#d4d4d8' }}>Quem sou</a>
-            <a href="#habilidades" style={{ textDecoration: 'none', color: '#d4d4d8' }}>Habilidades</a>
-            <a href="#trajetoria" style={{ textDecoration: 'none', color: '#d4d4d8' }}>Trajetória</a>
-            <a href="#hobbies" style={{ textDecoration: 'none', color: '#d4d4d8' }}>Hobbies</a>
-            <a href="#contato" style={{ textDecoration: 'none', color: '#d4d4d8' }}>Contato</a>
-          </div>
-
-          <div
-            style={{
-              width: '1px',
-              height: '20px',
-              background: 'rgba(255,255,255,0.12)',
-              margin: '0 6px',
-            }}
-          />
-
-          <button
-            style={{
-              width: '34px',
-              height: '34px',
-              borderRadius: '999px',
-              border: '1px solid rgba(255,255,255,0.08)',
-              background: 'rgba(255,255,255,0.05)',
-              color: '#e4e4e7',
-              fontSize: '16px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-            }}
-          >
-            ☾
-          </button>
-        </nav>
+        <PillBase />
 
         <section
           id="home"
@@ -490,7 +492,7 @@ export default function Home() {
             >
               <div style={{ flex: 1, overflow: 'hidden' }}>
                 <img
-                  src="/foto.png"
+                  src="/fotofrente.jpg"
                   alt="Minha foto"
                   style={{
                     width: '100%',
@@ -514,15 +516,24 @@ export default function Home() {
               >
                 <div>
                   <div style={{ fontSize: '14px', color: '#e4e4e7' }}>
-                    Ciência de Dados e IA
+                    Engenharia de Software
                   </div>
-                  <div style={{ fontSize: '12px', color: '#a1a1aa', marginTop: '4px' }}>
+                  <div
+                    style={{
+                      fontSize: '12px',
+                      color: '#a1a1aa',
+                      marginTop: '4px',
+                    }}
+                  >
                     IBMEC
                   </div>
                 </div>
 
                 <a
-                  href="#sobre"
+                  href="/curriculo-gustavo.pdf"
+                  download
+                  target="_blank"
+                  rel="noopener noreferrer"
                   style={{
                     background: '#18181b',
                     color: 'white',
@@ -533,9 +544,18 @@ export default function Home() {
                     textDecoration: 'none',
                     border: '1px solid rgba(255,255,255,0.08)',
                     whiteSpace: 'nowrap',
+                    transition: 'all 0.25s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#27272a';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = '#18181b';
+                    e.currentTarget.style.transform = 'translateY(0)';
                   }}
                 >
-                  Minha história
+                  Baixar CV
                 </a>
               </div>
             </div>
@@ -562,21 +582,7 @@ export default function Home() {
                   color: '#d4d4d8',
                 }}
               >
-                Ciência de Dados e IA | IBMEC
-              </p>
-
-              <p
-                style={{
-                  marginTop: '18px',
-                  maxWidth: '520px',
-                  fontSize: '16px',
-                  lineHeight: 1.65,
-                  color: '#a1a1aa',
-                }}
-              >
-                Sou apaixonado por tecnologia, dados e inteligência artificial.
-                Estou construindo projetos que unem análise, criatividade e desenvolvimento
-                para criar experiências modernas e úteis.
+                Engenharia de Software | IBMEC
               </p>
             </div>
           </div>
@@ -584,24 +590,29 @@ export default function Home() {
 
         <section id="sobre" style={sectionStyle}>
           <div style={{ maxWidth: '1180px', margin: '0 auto' }}>
-            <p style={{ color: '#c7d2fe', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
-              Quem sou
-            </p>
-            <h2 style={{ fontSize: '42px', marginTop: '10px', marginBottom: '20px' }}>
-              Minha história
-            </h2>
-
-            <div
+            <p
               style={{
-                ...cardStyle,
-                padding: '28px',
+                color: '#c7d2fe',
+                fontSize: '13px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.12em',
+                marginBottom: '10px',
               }}
             >
-              <p style={{ color: '#d4d4d8', fontSize: '17px', lineHeight: 1.8, maxWidth: '850px' }}>
-                Aqui você pode contar sua trajetória, sua evolução nos estudos, sua entrada no IBMEC,
-                sua bolsa, o que te motivou a entrar na área de tecnologia e o que você quer construir no futuro.
-              </p>
-            </div>
+              Sobre
+            </p>
+
+            <h2
+              style={{
+                fontSize: '42px',
+                marginTop: '10px',
+                marginBottom: '28px',
+              }}
+            >
+              Sobre
+            </h2>
+
+            <AboutTabs />
           </div>
         </section>
 
@@ -632,7 +643,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="trajetoria" style={sectionStyle}>
+        <section id="hobbies" style={sectionStyle}>
           <div style={{ maxWidth: '1180px', margin: '0 auto' }}>
             <p
               style={{
@@ -640,107 +651,48 @@ export default function Home() {
                 fontSize: '13px',
                 textTransform: 'uppercase',
                 letterSpacing: '0.12em',
-                marginBottom: '10px',
               }}
             >
-              Minha trajetória
+              Hobbies
             </p>
-
             <h2
               style={{
                 fontSize: '42px',
-                marginTop: '0',
-                marginBottom: '12px',
-                color: '#ffffff',
-              }}
-            >
-              Minha trajetória
-            </h2>
-
-            <p
-              style={{
-                color: '#a1a1aa',
-                fontSize: '17px',
-                lineHeight: 1.8,
+                marginTop: '10px',
                 marginBottom: '28px',
-                maxWidth: '850px',
               }}
             >
-              Uma linha do tempo com os momentos que marcaram minha caminhada até aqui.
-            </p>
-
-            <div
-              style={{
-                ...cardStyle,
-                padding: '28px',
-              }}
-            >
-              <TimeLine_01 />
-            </div>
-          </div>
-        </section>
-
-        <section id="hobbies" style={sectionStyle}>
-          <div style={{ maxWidth: '1180px', margin: '0 auto' }}>
-            <p style={{ color: '#c7d2fe', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
               Hobbies
-            </p>
-            <h2 style={{ fontSize: '42px', marginTop: '10px', marginBottom: '28px' }}>
-              O que gosto de fazer
             </h2>
 
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-                gap: '20px',
-              }}
-            >
-              {['Skate', 'Corinthians', 'Tecnologia'].map((item) => (
-                <div
-                  key={item}
-                  style={{
-                    ...cardStyle,
-                    padding: '24px',
-                  }}
-                >
-                  <h3 style={{ fontSize: '22px', marginBottom: '12px' }}>{item}</h3>
-                  <p style={{ color: '#a1a1aa', lineHeight: 1.7 }}>
-                    Espaço para você colocar um texto pessoal e deixar o site com mais a sua cara.
-                  </p>
-                </div>
-              ))}
-            </div>
+            <HobbiesWheel />
           </div>
         </section>
 
         <section id="contato" style={sectionStyle}>
           <div style={{ maxWidth: '1180px', margin: '0 auto' }}>
-            <p style={{ color: '#c7d2fe', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
-              Contato
-            </p>
-            <h2 style={{ fontSize: '42px', marginTop: '10px', marginBottom: '28px' }}>
-              Vamos conversar
-            </h2>
-
-            <div
+            <p
               style={{
-                ...cardStyle,
-                padding: '28px',
-                display: 'grid',
-                gap: '14px',
+                color: '#c7d2fe',
+                fontSize: '13px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.12em',
               }}
             >
-              <p style={{ color: '#d4d4d8', fontSize: '17px' }}>
-                Email: seuemail@exemplo.com
-              </p>
-              <p style={{ color: '#d4d4d8', fontSize: '17px' }}>
-                LinkedIn: seu link aqui
-              </p>
-              <p style={{ color: '#d4d4d8', fontSize: '17px' }}>
-                GitHub: seu link aqui
-              </p>
-            </div>
+              Contato
+            </p>
+
+            <h2
+              style={{
+                fontSize: '42px',
+                marginTop: '10px',
+                marginBottom: '28px',
+              }}
+            >
+              Contato
+            </h2>
+
+            <GetInTouch />
           </div>
         </section>
       </div>
