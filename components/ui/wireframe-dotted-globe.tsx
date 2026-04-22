@@ -51,7 +51,7 @@ export default function RotatingEarth({
     const path = d3.geoPath().projection(projection).context(context);
     const graticule = d3.geoGraticule();
 
-    const rotation = [0, 0];
+    const rotation: [number, number] = [0, 0];
     let autoRotate = true;
     const rotationSpeed = 0.22;
     let landFeatures: any = null;
@@ -142,7 +142,7 @@ export default function RotatingEarth({
       projection
         .scale(baseRadius)
         .translate([containerWidth / 2, containerHeight / 2])
-        .rotate(rotation as [number, number, number?]);
+        .rotate(rotation);
     };
 
     const render = () => {
@@ -252,7 +252,7 @@ export default function RotatingEarth({
 
       if (autoRotate) {
         rotation[0] += rotationSpeed;
-        projection.rotate(rotation as [number, number, number?]);
+        projection.rotate(rotation);
         render();
       }
     };
@@ -274,7 +274,7 @@ export default function RotatingEarth({
         rotation[1] = startRotation[1] - dy * sensitivity;
         rotation[1] = Math.max(-90, Math.min(90, rotation[1]));
 
-        projection.rotate(rotation as [number, number, number?]);
+        projection.rotate(rotation);
         render();
       };
 
